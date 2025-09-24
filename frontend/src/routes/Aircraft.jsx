@@ -3,9 +3,11 @@ import { api } from '../api/client'
 import { useAuth } from '../store/auth'
 import Card from '../components/Card'
 import Table from '../components/Table'
+import { useAircraftStore } from '../store/aircraft'
 
 export default function Aircraft() {
   const { user } = useAuth()
+  const { setActive } = useAircraftStore()
   const [data, setData] = useState([])
   const [q, setQ] = useState('')
   const [includeArchived, setIncludeArchived] = useState(false)
@@ -56,6 +58,7 @@ export default function Aircraft() {
         eng2_cycles: f.eng2_cycles ? Number(f.eng2_cycles) : 0,
         as_of_date: f.as_of_date || null,
       })
+      try { await setActive(ac) } catch {}
       onCreated()
       onClose()
     }
@@ -130,6 +133,9 @@ export default function Aircraft() {
           { key: 'serial', title: 'Serial' },
           { key: 'tail_number', title: 'Tail' },
           { key: 'status', title: 'Status' },
+          { key: 'view', title: '', render: (v, row) => (
+            <button className="text-indigo-600" onClick={() => setActive(row)}>View</button>
+          )},
           { key: 'actions', title: 'Actions', render: (v, row) => (
             <div className="flex gap-2">
               {(user?.role === 'Admin' || user?.role === 'Mechanic') && (
