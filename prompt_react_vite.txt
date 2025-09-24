@@ -1,0 +1,134 @@
+Objetivo
+Construye una aplicación web para seguimiento de mantenimientos e inspecciones de aeronaves (MTRs = Maintenance & Transition Reports) con frontend moderno independiente.
+
+Arquitectura
+- Backend API: Python 3.11 + FastAPI, SQLAlchemy/SQLModel, Pydantic, Alembic; JWT (OAuth2 password), passlib.
+- DB: SQLite en dev y Postgres en prod (variables de entorno).
+- Frontend SPA: React + Vite (JavaScript), React Router, Axios, Tailwind CSS. Estado ligero con Context o Zustand.
+- DevX: README raíz con cómo correr ambos; `.env.example` para backend y frontend; scripts de arranque; pruebas mínimas (pytest en backend).
+- Estructura de repo (monorepo simple):
+  backend/
+    app/main.py
+    app/api/*.py (routers)
+    app/auth/*.py
+    app/models/*.py
+    app/schemas/*.py
+    app/services/*.py
+    app/db.py
+    migrations/
+    tests/
+  frontend/
+    index.html
+    src/
+      main.jsx
+      App.jsx
+      routes/
+        Dashboard.jsx
+        Aircraft.jsx
+        Mtrs.jsx
+        Reports.jsx
+        MtrCreateWizard/
+          Step1Info.jsx
+          Step2TimesCycles.jsx
+          Step3Items.jsx
+          Step4Facility.jsx
+          Step5Inspection.jsx
+          Step6Confirm.jsx
+      components/
+        Navbar.jsx
+        Card.jsx
+        Table.jsx
+        Form/*.jsx
+        Alerts.jsx
+      api/client.js (Axios con baseURL y auth)
+      store/auth.js
+      styles/tailwind.css
+    public/
+
+Autenticación y roles (RBAC)
+- Login en frontend → recibe JWT; guarda en memoria/LocalStorage seguro.
+- Rutas protegidas por rol: Admin (full), Mechanic (crear MTRs, archivar), Auditor (solo lectura).
+- Si falta permiso → redirigir a “Acceso denegado” y mostrar toast/alert.
+
+Navbar
+- Dashboard (default tras login), Aircraft, Tracking (dropdown: MTRs, Reports). Mostrar/ocultar acciones según rol.
+
+Vistas (frontend) y comportamiento
+1) Dashboard
+- Card “Aircraft Identity”: muestra último avión consultado; si no hay, mostrar selector (modal/select) para elegir uno.
+- Card “Times & Cycles” del avión activo (destacada).
+- Card “Recent MTRs” del avión activo (click a detalle) + botón “Create MTR” si el rol permite.
+- Card “Recent Changes”.
+
+2) Aircraft
+- Tabla paginada con búsqueda; toggle “Include archived”.
+- Botón “Add Aircraft” → modal/form con:
+  - Model* (string), Serial* (único), Registration/Tail Number* (único)
+  - CSV opcional con ítems
+  - Times & Cycles (obligatorio): Aircraft Hours*, Aircraft Landings*, APU Hours, APU Cycles, Engine 1/2 Hours & Cycles
+- Acciones: View, Edit, Archive/Unarchive. Delete permanently solo Admin y solo si está ARCHIVED.
+- Subvista detalle muestra “Times & Cycles” editable y lista de ítems importados.
+
+3) Tracking → MTRs
+- Listado paginado con filtro por avión; botones “Change Aircraft” y “Add MTR”.
+- “Add MTR” como wizard de 6 pasos (cada paso su ruta/hook de estado). Validar antes de continuar y posibilidad de retroceder en cualquier momento a pasos anteriores sin perder info.
+  Paso 1 – “Aircraft & MTR Info”
+    - Transaction Is Solely For* (selector avión)
+    - Aircraft Serial No.* (autorrelleno, editable)
+    - Aircraft Reg No (opcional)
+    - Work Completed Date* (US mm/dd/yyyy)
+    - Work Completed City* (IATA 3 o ICAO 4)
+  Paso 2 – “Times & Cycles”
+    - Precargar desde avión; permitir editar para este MTR.
+  Paso 3 – “MTR ITEMS”
+    - Buscador por código de ítem (permitir repetidos), Descripción* obligatoria, Cantidad (1 por defecto). Agregar y eliminar antes de continuar.
+  Paso 4 – “Repair Facility”
+    - Repair Facility*, Facility Certificate*, Work Order Number*, Work Performed By*, Certificate Number*, Date* (US).
+  Paso 5 – “Inspection”
+    - Texto fijo FAA + textarea “Additional Certification Statement” con default:
+      "The aircraft identified above is presently approved for return to service."
+    - Campos: Work inspected by*, Certificate Number*, Date*.
+  Paso 6 – Confirmación
+    - Mostrar 4 cards de solo lectura con la información de los pasos anteriores.
+    - “Submit MTR” → POST a backend; redirigir a vista MTRs.
+
+Reports (placeholder)
+- Página base que lista reportes disponibles (solo lectura).
+
+API (backend)
+- Auth: POST /auth/login, POST /auth/register (Admin), GET /auth/me
+- Aircraft: GET/POST/PUT/PATCH/DELETE /aircraft, POST /aircraft/{id}/archive, POST /aircraft/{id}/unarchive, POST /aircraft/import
+- Times & Cycles: GET/PUT /aircraft/{id}/times-cycles
+- MTRs: GET /mtrs?aircraft_id=, GET /mtrs/{id}, POST /mtrs, POST /mtrs/{id}/items, DELETE /mtrs/{id}/items/{item_id}
+- Reports: GET /reports
+Protección JWT + verificación de rol por dependencia.
+
+Modelo de datos (Alembic)
+- users(id, name, email unique, password_hash, role[Admin|Mechanic|Auditor], created_at)
+- aircraft(id, model, serial unique, tail_number unique, status[ACTIVE|ARCHIVED], created_at, updated_at)
+- times_cycles(id, aircraft_id unique FK, aircraft_hours, landings, apu_hours, apu_cycles, eng1_hours, eng1_cycles, eng2_hours, eng2_cycles, as_of_date)
+- mtr(id, aircraft_id FK, transaction_for, aircraft_serial, aircraft_reg, work_completed_date, work_completed_city)
+- mtr_item(id, mtr_id FK, item_code, description, quantity)
+- repair_facility(id, mtr_id unique FK, facility, facility_certificate, work_order_number, performed_by, certificate_number, date)
+- inspection(id, mtr_id unique FK, statement_default, additional_statement, inspected_by, certificate_number, date)
+- change_log(id, actor_user_id, entity_type, entity_id, action, before_json, after_json, created_at)
+
+Importación CSV
+- Endpoint para subir CSV al crear avión. Duplicados por (item_code + características) → devolverlos como lista de duplicados y no insertarlos en la tabla principal.
+
+Validaciones
+- * obligatorios. Fechas mm/dd/yyyy. City: IATA(3) o ICAO(4). serial y tail_number únicos. Para “Delete permanently”, avión debe estar ARCHIVED. Paginación 25.
+
+UI/UX
+- Tailwind con componente Card reutilizable, tablas responsivas y formularios validados. Alerts/Toasts para errores y éxito. Guardar estado del wizard entre pasos.
+
+Seguridad
+- Hash seguro, expiración de tokens, CORS, sanitizado, ocultar trazas en prod.
+
+Pruebas mínimas (backend)
+- Login OK/KO, permisos por rol, flujo feliz de creación de MTR, validaciones de requeridos.
+
+Entrega
+- Backend: `uvicorn app.main:app --reload`.
+- Frontend: `npm install && npm run dev` (Vite).
+- README raíz con instrucciones de ambas apps, .env de ejemplo y usuario admin inicial.
