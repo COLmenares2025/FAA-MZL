@@ -1,9 +1,11 @@
 ﻿import { useEffect, useState } from 'react'
 import { api } from '../api/client'
+import { useAuth } from '../store/auth'
 import Card from '../components/Card'
 import Table from '../components/Table'
 
 export default function Aircraft() {
+  const { user } = useAuth()
   const [data, setData] = useState([])
   const [q, setQ] = useState('')
   const [includeArchived, setIncludeArchived] = useState(false)
@@ -117,7 +119,9 @@ export default function Aircraft() {
           </label>
           <button className="bg-indigo-600 text-white rounded px-3 py-1" onClick={fetchData}>Search</button>
           <div className="flex-1" />
-          <button className="bg-green-600 text-white rounded px-3 py-1" onClick={()=>setModalOpen(true)}>Add Aircraft</button>
+          {(user?.role === 'Admin' || user?.role === 'Mechanic') && (
+            <button className="bg-green-600 text-white rounded px-3 py-1" onClick={()=>setModalOpen(true)}>Add Aircraft</button>
+          )}
         </div>
       </Card>
       <Table
@@ -128,10 +132,12 @@ export default function Aircraft() {
           { key: 'status', title: 'Status' },
           { key: 'actions', title: 'Actions', render: (v, row) => (
             <div className="flex gap-2">
-              {row.status === 'ACTIVE' ? (
-                <button className="text-yellow-700" onClick={()=>toggleArchive(row)}>Archive</button>
-              ) : (
-                <button className="text-green-700" onClick={()=>toggleArchive(row)}>Unarchive</button>
+              {(user?.role === 'Admin' || user?.role === 'Mechanic') && (
+                row.status === 'ACTIVE' ? (
+                  <button className="text-yellow-700" onClick={()=>toggleArchive(row)}>Archive</button>
+                ) : (
+                  <button className="text-green-700" onClick={()=>toggleArchive(row)}>Unarchive</button>
+                )
               )}
             </div>
           )}
