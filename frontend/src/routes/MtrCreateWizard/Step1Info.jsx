@@ -1,6 +1,6 @@
 ﻿import { useState } from 'react'
 
-export default function Step1Info({ state, setState, next }) {
+export default function Step1Info({ state, setState, next = () => {} }) {
   const [local, setLocal] = useState(state.step1 || {
     transaction_for: '',
     aircraft_id: '',
@@ -11,12 +11,17 @@ export default function Step1Info({ state, setState, next }) {
   })
 
   function onNext() {
+    console.log('[Step1] click Next')
     if (!local.transaction_for || !local.aircraft_serial || !local.work_completed_date || !local.work_completed_city) {
       alert('Please fill required fields');
       return
     }
     setState({ ...state, step1: local })
-    next()
+    if (typeof next === 'function') {
+      next()
+    } else {
+      console.warn('next no es una función; revisa el padre del wizard')
+    }
   }
 
   return (

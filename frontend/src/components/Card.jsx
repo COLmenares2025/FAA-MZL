@@ -1,7 +1,7 @@
 ﻿export default function Card({ title, children, actions }) {
   return (
-    <div className="bg-white rounded-lg shadow p-4 border border-gray-100">
-      {title && <div className="mb-2 font-semibold text-gray-800">{title}</div>}
+    <div className="bg-gray-100 rounded-lg shadow-xl p-4 border border-blue-400">
+      {title && <div className="mb-2 font-bold text-gray-800">{title}</div>}
       {actions}
       <div>{children}</div>
     </div>

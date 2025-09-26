@@ -41,7 +41,7 @@ function Wizard() {
   return (
     <div className="space-y-4">
       <div className="text-sm text-gray-600">Step {idx+1} of {steps.length}</div>
-      <Current next={next} back={back} submit={submit} />
+      {Current(next, back, submit)}
     </div>
   )
 }
